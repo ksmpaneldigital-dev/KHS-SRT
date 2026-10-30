@@ -373,7 +373,8 @@ export const AudioTrimmer: React.FC<AudioTrimmerProps> = ({
             <button
               onClick={() => nudgeStart(-0.1)}
               className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-xs font-mono text-slate-300 border border-slate-700 cursor-pointer"
-              title="-0.1s"
+              title={isKhmer ? 'បន្ថយ ០.១ វិនាទី' : 'Decrease start by 0.1s'}
+              data-testid="trim-start-minus"
             >
               -0.1s
             </button>
@@ -383,6 +384,7 @@ export const AudioTrimmer: React.FC<AudioTrimmerProps> = ({
               max={safeEnd - 0.05}
               step="0.05"
               value={safeStart}
+              data-testid="trim-start-input"
               onChange={(e) => {
                 const val = parseFloat(e.target.value);
                 if (!isNaN(val)) {
@@ -394,7 +396,8 @@ export const AudioTrimmer: React.FC<AudioTrimmerProps> = ({
             <button
               onClick={() => nudgeStart(0.1)}
               className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-xs font-mono text-slate-300 border border-slate-700 cursor-pointer"
-              title="+0.1s"
+              title={isKhmer ? 'បង្កើន ០.១ វិនាទី' : 'Increase start by 0.1s'}
+              data-testid="trim-start-plus"
             >
               +0.1s
             </button>
@@ -415,7 +418,8 @@ export const AudioTrimmer: React.FC<AudioTrimmerProps> = ({
             <button
               onClick={() => nudgeEnd(-0.1)}
               className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-xs font-mono text-slate-300 border border-slate-700 cursor-pointer"
-              title="-0.1s"
+              title={isKhmer ? 'បន្ថយ ០.១ វិនាទី' : 'Decrease end by 0.1s'}
+              data-testid="trim-end-minus"
             >
               -0.1s
             </button>
@@ -425,6 +429,7 @@ export const AudioTrimmer: React.FC<AudioTrimmerProps> = ({
               max={safeDuration}
               step="0.05"
               value={safeEnd}
+              data-testid="trim-end-input"
               onChange={(e) => {
                 const val = parseFloat(e.target.value);
                 if (!isNaN(val)) {
@@ -436,7 +441,8 @@ export const AudioTrimmer: React.FC<AudioTrimmerProps> = ({
             <button
               onClick={() => nudgeEnd(0.1)}
               className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-xs font-mono text-slate-300 border border-slate-700 cursor-pointer"
-              title="+0.1s"
+              title={isKhmer ? 'បង្កើន ០.១ វិនាទី' : 'Increase end by 0.1s'}
+              data-testid="trim-end-plus"
             >
               +0.1s
             </button>
@@ -448,6 +454,7 @@ export const AudioTrimmer: React.FC<AudioTrimmerProps> = ({
           {/* Play Trimmed Region Button */}
           <div className="flex items-center gap-1.5">
             <button
+              data-testid="trim-preview-btn"
               onClick={() => {
                 if (isPlaying) {
                   onPause();
@@ -466,6 +473,7 @@ export const AudioTrimmer: React.FC<AudioTrimmerProps> = ({
             </button>
 
             <button
+              data-testid="trim-loop-btn"
               onClick={() => setIsLooping(!isLooping)}
               className={`p-2 rounded-lg border text-xs transition-colors cursor-pointer ${
                 isLooping
@@ -481,6 +489,7 @@ export const AudioTrimmer: React.FC<AudioTrimmerProps> = ({
           {/* Quick Preset Buttons */}
           <div className="flex items-center gap-1.5">
             <button
+              data-testid="trim-silence-btn"
               onClick={handleAutoTrimSilence}
               className="flex-1 flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-[11px] font-medium text-slate-200 transition-colors cursor-pointer"
               title={isKhmer ? 'កាត់ចន្លោះស្ងាត់ដោយស្វ័យប្រវត្តិ' : 'Auto-detect voice and cut silence'}
@@ -490,6 +499,7 @@ export const AudioTrimmer: React.FC<AudioTrimmerProps> = ({
             </button>
 
             <button
+              data-testid="trim-reset-btn"
               onClick={handleResetFull}
               className="flex items-center justify-center gap-1 py-1.5 px-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-[11px] font-medium text-slate-300 transition-colors cursor-pointer"
               title={isKhmer ? 'ជ្រើសរើសសំឡេងទាំងមូល' : 'Reset to full audio'}

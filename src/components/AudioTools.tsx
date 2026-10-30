@@ -3,6 +3,7 @@ import { SavedAudioItem, AppLanguage } from '../types';
 import { voiceEngine } from '../services/voiceEngine';
 import { AudioWaveVisualizer } from './AudioWaveVisualizer';
 import { ExportSettingsModal } from './ExportSettingsModal';
+import { AudioTrimmer } from './AudioTrimmer';
 import {
   AudioExportConfig,
   NORMALIZATION_PRESETS,
@@ -12,6 +13,8 @@ import {
   dbToLinear,
   calculateNormalizationGain,
   NormalizationResult,
+  sliceAudioBufferData,
+  encodeWAV,
 } from '../utils/audioMath';
 import {
   Sliders,
@@ -30,6 +33,7 @@ import {
   Activity,
   Gauge,
   CheckCircle2,
+  Scissors,
 } from 'lucide-react';
 
 interface AudioToolsProps {
@@ -47,8 +51,15 @@ export const AudioTools: React.FC<AudioToolsProps> = ({
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [audioName, setAudioName] = useState<string>('sample_voiceover.wav');
   const [duration, setDuration] = useState<number>(4.2);
+  const [currentTime, setCurrentTime] = useState<number>(0);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [progress, setProgress] = useState<number>(0);
+
+  // Audio Trimmer & Region Cropping State
+  const [trimStart, setTrimStart] = useState<number>(0);
+  const [trimEnd, setTrimEnd] = useState<number>(4.2);
+  const [isTrimLooping, setIsTrimLooping] = useState<boolean>(false);
+  const [isPreviewingTrim, setIsPreviewingTrim] = useState<boolean>(false);
 
   // FX Parameters
   const [speed, setSpeed] = useState<number>(1.0);
@@ -131,6 +142,9 @@ export const AudioTools: React.FC<AudioToolsProps> = ({
     );
     setAudioUrl(demo.url);
     setDuration(demo.duration);
+    setTrimStart(0);
+    setTrimEnd(demo.duration);
+    setIsPreviewingTrim(false);
     setAudioName('sample_voiceover.wav');
     setMeasuredPeakDb(demo.peakDb);
     setMeasuredRmsDb(demo.rmsDb);
@@ -162,7 +176,11 @@ export const AudioTools: React.FC<AudioToolsProps> = ({
       const AudioCtxClass = window.AudioContext || (window as any).webkitAudioContext;
       const tempCtx = new AudioCtxClass();
       const audioBuffer = await tempCtx.decodeAudioData(arrayBuffer);
-      setDuration(Math.round(audioBuffer.duration * 10) / 10);
+      const dur = Math.round(audioBuffer.duration * 10) / 10;
+      setDuration(dur);
+      setTrimStart(0);
+      setTrimEnd(dur);
+      setIsPreviewingTrim(false);
 
       const channel = audioBuffer.getChannelData(0);
       setRawChannelData(channel);
@@ -178,6 +196,9 @@ export const AudioTools: React.FC<AudioToolsProps> = ({
     } catch {
       // Fallback duration
       setDuration(5.0);
+      setTrimStart(0);
+      setTrimEnd(5.0);
+      setIsPreviewingTrim(false);
     }
   };
 
@@ -192,7 +213,9 @@ export const AudioTools: React.FC<AudioToolsProps> = ({
     if (isPlaying) {
       audioRef.current.pause();
       setIsPlaying(false);
+      setIsPreviewingTrim(false);
     } else {
+      setIsPreviewingTrim(false);
       audioRef.current.playbackRate = speed;
       audioRef.current.play().catch(() => {});
       setIsPlaying(true);
@@ -203,7 +226,55 @@ export const AudioTools: React.FC<AudioToolsProps> = ({
     if (audioRef.current) {
       const cur = audioRef.current.currentTime;
       const total = audioRef.current.duration || duration || 1;
+      setCurrentTime(cur);
       setProgress(cur / total);
+
+      // Boundary check for trim preview
+      if (isPreviewingTrim) {
+        if (cur >= trimEnd) {
+          if (isTrimLooping) {
+            audioRef.current.currentTime = trimStart;
+          } else {
+            audioRef.current.pause();
+            setIsPlaying(false);
+            setIsPreviewingTrim(false);
+          }
+        }
+      }
+    }
+  };
+
+  const handlePlayTrimmedRegion = (loop: boolean) => {
+    if (!audioRef.current || !audioUrl) {
+      handleLoadDemo();
+      return;
+    }
+
+    setupWebAudioNodes();
+    setIsTrimLooping(loop);
+    setIsPreviewingTrim(true);
+
+    audioRef.current.currentTime = trimStart;
+    setCurrentTime(trimStart);
+    audioRef.current.playbackRate = speed;
+    audioRef.current.play().catch(() => {});
+    setIsPlaying(true);
+  };
+
+  const handleSeek = (time: number) => {
+    if (audioRef.current) {
+      audioRef.current.currentTime = time;
+      setCurrentTime(time);
+      const total = audioRef.current.duration || duration || 1;
+      setProgress(time / total);
+    }
+  };
+
+  const handlePause = () => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      setIsPlaying(false);
+      setIsPreviewingTrim(false);
     }
   };
 
@@ -257,22 +328,44 @@ export const AudioTools: React.FC<AudioToolsProps> = ({
       }
     );
 
+    // If trimmed, slice the output channel data to the exact user selection
+    let finalBlobUrl = processed.url;
+    let finalDuration = processed.duration;
+    const isTrimmed = trimStart > 0.02 || (duration > 0 && trimEnd < duration - 0.02);
+
+    if (isTrimmed && processed.channelData && processed.channelData.length > 0) {
+      const sliceResult = sliceAudioBufferData(
+        processed.channelData,
+        cfg.sampleRate,
+        trimStart,
+        Math.min(trimEnd, processed.duration)
+      );
+
+      if (sliceResult.channels.length > 0 && sliceResult.sampleCount > 0) {
+        const slicedWavBytes = encodeWAV(sliceResult.channels, cfg.sampleRate);
+        const mimeType = cfg.format === 'mp3' ? 'audio/mp3' : 'audio/wav';
+        const slicedBlob = new Blob([slicedWavBytes as unknown as BlobPart], { type: mimeType });
+        finalBlobUrl = URL.createObjectURL(slicedBlob);
+        finalDuration = sliceResult.duration;
+      }
+    }
+
     const ext = cfg.format;
     const link = document.createElement('a');
-    link.href = processed.url;
-    link.download = `VoiceTool_Normalized_${(cfg.sampleRate / 1000).toFixed(1)}kHz_${volumeGain}pct_${Date.now()}.${ext}`;
+    link.href = finalBlobUrl;
+    link.download = `VoiceTool_${isTrimmed ? 'Trimmed_' : ''}Normalized_${(cfg.sampleRate / 1000).toFixed(1)}kHz_${volumeGain}pct_${Date.now()}.${ext}`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
 
     onSaveToLibrary({
       id: `tool-${Date.now()}`,
-      title: `${isKhmer ? 'កែសម្រួលកម្រិតសំឡេង៖' : 'Normalized:'} ${audioName} (${volumeGain}%)`,
+      title: `${isTrimmed ? (isKhmer ? 'កាត់ & ស្មើកម្រិត៖' : 'Trimmed & Normalized:') : (isKhmer ? 'កែសម្រួលកម្រិតសំឡេង៖' : 'Normalized:')} ${audioName} (${volumeGain}%)`,
       type: 'tool',
       createdAt: Date.now(),
-      durationSeconds: Math.round(processed.duration),
-      audioBlobUrl: processed.url,
-      fileSizeFormatted: `${Math.round(processed.duration * 175)} KB`,
+      durationSeconds: Math.round(finalDuration),
+      audioBlobUrl: finalBlobUrl,
+      fileSizeFormatted: `${Math.round(finalDuration * 175)} KB`,
     });
   };
 
@@ -344,6 +437,12 @@ export const AudioTools: React.FC<AudioToolsProps> = ({
               </div>
               <div className="flex items-center gap-2 text-xs font-mono text-slate-400">
                 <span>{duration.toFixed(1)}s</span>
+                {(trimStart > 0.02 || (duration > 0 && trimEnd < duration - 0.02)) && (
+                  <span className="px-1.5 py-0.5 rounded bg-amber-950/70 text-amber-300 border border-amber-800/60 text-[10px] font-sans font-semibold flex items-center gap-1">
+                    <Scissors className="w-3 h-3" />
+                    <span>{isKhmer ? 'បានកាត់៖' : 'Trimmed:'} {(trimEnd - trimStart).toFixed(2)}s</span>
+                  </span>
+                )}
                 <span>&bull;</span>
                 <span className="text-indigo-400">{volumeGain}% Gain</span>
               </div>
@@ -355,7 +454,9 @@ export const AudioTools: React.FC<AudioToolsProps> = ({
               onSeek={(r) => {
                 setProgress(r);
                 if (audioRef.current) {
-                  audioRef.current.currentTime = r * (audioRef.current.duration || duration);
+                  const targetTime = r * (audioRef.current.duration || duration);
+                  audioRef.current.currentTime = targetTime;
+                  setCurrentTime(targetTime);
                 }
               }}
               height={75}
@@ -369,6 +470,8 @@ export const AudioTools: React.FC<AudioToolsProps> = ({
               onEnded={() => {
                 setIsPlaying(false);
                 setProgress(0);
+                setCurrentTime(0);
+                setIsPreviewingTrim(false);
               }}
             />
 
@@ -404,12 +507,33 @@ export const AudioTools: React.FC<AudioToolsProps> = ({
                 >
                   <Download className="w-3.5 h-3.5" />
                   <span>
-                    {isKhmer ? 'ទាញយក' : 'Download'} ({exportConfig.format.toUpperCase()})
+                    {trimStart > 0.02 || (duration > 0 && trimEnd < duration - 0.02)
+                      ? isKhmer ? 'ទាញយកចន្លោះកាត់' : 'Download Sliced'
+                      : isKhmer ? 'ទាញយក' : 'Download'} ({exportConfig.format.toUpperCase()})
                   </span>
                 </button>
               </div>
             </div>
           </div>
+
+          {/* Interactive Audio Trimmer & Region Cropper */}
+          <AudioTrimmer
+            duration={duration}
+            currentTime={currentTime}
+            isPlaying={isPlaying}
+            trimStart={trimStart}
+            trimEnd={trimEnd}
+            rawChannelData={rawChannelData}
+            sampleRate={exportConfig.sampleRate}
+            uiLang={uiLang}
+            onTrimChange={(start, end) => {
+              setTrimStart(start);
+              setTrimEnd(end);
+            }}
+            onPlayTrimmedRegion={handlePlayTrimmedRegion}
+            onPause={handlePause}
+            onSeek={handleSeek}
+          />
 
           {/* Real-time Decibel Meter & Normalization Visualizer Card */}
           <div className="rounded-xl bg-slate-900 border border-slate-800 p-4 space-y-3">
