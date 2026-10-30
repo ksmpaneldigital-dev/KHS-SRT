@@ -4,6 +4,7 @@ import { voiceEngine } from '../services/voiceEngine';
 import { AudioWaveVisualizer } from './AudioWaveVisualizer';
 import { ExportSettingsModal } from './ExportSettingsModal';
 import { AudioExportConfig, DEFAULT_EXPORT_CONFIG } from '../utils/audioMath';
+import { VOICETOOL_ACTION_EVENT } from '../utils/keyboardShortcuts';
 import {
   Mic,
   Square,
@@ -207,6 +208,39 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ onSaveToLibrary })
     document.body.removeChild(link);
   };
 
+  // Listen for keyboard shortcuts dispatched from global hub
+  useEffect(() => {
+    const handleAction = (e: any) => {
+      const action = e.detail?.action;
+      if (action === 'toggle-record') {
+        if (isRecording) {
+          stopRecording();
+        } else {
+          startRecording();
+        }
+      } else if (action === 'pause-record') {
+        handlePauseResume();
+      } else if (action === 'toggle-play') {
+        if (isRecording) {
+          stopRecording();
+        } else {
+          handlePlayAudio();
+        }
+      } else if (action === 'export') {
+        if (audioUrl) {
+          setIsExportModalOpen(true);
+        }
+      } else if (action === 'save-library') {
+        handleSaveToLibrary();
+      } else if (action === 'close-modal') {
+        setIsExportModalOpen(false);
+      }
+    };
+
+    window.addEventListener(VOICETOOL_ACTION_EVENT, handleAction);
+    return () => window.removeEventListener(VOICETOOL_ACTION_EVENT, handleAction);
+  }, [isRecording, isPaused, audioUrl, isPlaying, playbackSpeed, recordingSeconds]);
+
   const formatTime = (totalSeconds: number) => {
     const mins = Math.floor(totalSeconds / 60);
     const secs = Math.floor(totalSeconds % 60);
@@ -265,34 +299,52 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ onSaveToLibrary })
             </p>
 
             {/* Record / Pause / Stop Buttons */}
-            <div className="flex items-center gap-4">
-              {!isRecording ? (
-                <button
-                  onClick={startRecording}
-                  className="flex items-center justify-center w-16 h-16 rounded-full bg-rose-600 hover:bg-rose-500 text-white shadow-xl shadow-rose-600/40 transition-transform active:scale-95"
-                  title="Start Recording"
-                >
-                  <Mic className="w-7 h-7" />
-                </button>
-              ) : (
-                <>
+            <div className="flex flex-col items-center gap-2">
+              <div className="flex items-center gap-4">
+                {!isRecording ? (
                   <button
-                    onClick={handlePauseResume}
-                    className="flex items-center justify-center w-12 h-12 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors"
-                    title={isPaused ? 'Resume' : 'Pause'}
+                    onClick={startRecording}
+                    className="group relative flex items-center justify-center w-16 h-16 rounded-full bg-rose-600 hover:bg-rose-500 text-white shadow-xl shadow-rose-600/40 transition-transform active:scale-95 cursor-pointer"
+                    title="Start Recording (R)"
+                    data-testid="record-trigger-btn"
                   >
-                    {isPaused ? <Play className="w-5 h-5 fill-current" /> : <Pause className="w-5 h-5" />}
+                    <Mic className="w-7 h-7" />
+                    <span className="absolute -bottom-1 -right-1 px-1.5 py-0.2 rounded-full bg-slate-900 border border-slate-700 text-[10px] font-mono text-rose-300 font-bold shadow">
+                      R
+                    </span>
                   </button>
+                ) : (
+                  <>
+                    <button
+                      onClick={handlePauseResume}
+                      className="group relative flex items-center justify-center w-12 h-12 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors cursor-pointer"
+                      title={isPaused ? 'Resume (P)' : 'Pause (P)'}
+                    >
+                      {isPaused ? <Play className="w-5 h-5 fill-current" /> : <Pause className="w-5 h-5" />}
+                      <span className="absolute -bottom-1 -right-1 px-1 py-0.1 rounded bg-slate-900 border border-slate-700 text-[9px] font-mono text-amber-300 font-bold">
+                        P
+                      </span>
+                    </button>
 
-                  <button
-                    onClick={stopRecording}
-                    className="flex items-center justify-center w-16 h-16 rounded-full bg-slate-100 hover:bg-white text-slate-900 shadow-xl shadow-white/10 transition-transform active:scale-95"
-                    title="Stop Recording"
-                  >
-                    <Square className="w-7 h-7 fill-current" />
-                  </button>
-                </>
-              )}
+                    <button
+                      onClick={stopRecording}
+                      className="group relative flex items-center justify-center w-16 h-16 rounded-full bg-slate-100 hover:bg-white text-slate-900 shadow-xl shadow-white/10 transition-transform active:scale-95 cursor-pointer"
+                      title="Stop Recording (R or Space)"
+                      data-testid="record-stop-btn"
+                    >
+                      <Square className="w-7 h-7 fill-current" />
+                      <span className="absolute -bottom-1 -right-1 px-1.5 py-0.2 rounded-full bg-slate-900 border border-slate-700 text-[10px] font-mono text-slate-900 font-bold shadow">
+                        R
+                      </span>
+                    </button>
+                  </>
+                )}
+              </div>
+              <div className="text-[11px] font-mono text-slate-400 flex items-center gap-1.5">
+                <span>Shortcut:</span>
+                <kbd className="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700 text-[10px] font-mono text-rose-300 font-bold">R</kbd>
+                <span>{isRecording ? 'to stop' : 'to record'}</span>
+              </div>
             </div>
           </div>
 
@@ -328,7 +380,7 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ onSaveToLibrary })
                 <div className="flex items-center gap-2">
                   <button
                     onClick={handlePlayAudio}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold text-white shadow-md transition-all ${
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold text-white shadow-md transition-all cursor-pointer ${
                       isPlaying
                         ? 'bg-slate-700 hover:bg-slate-600'
                         : 'bg-rose-600 hover:bg-rose-500 shadow-rose-600/20'
@@ -336,6 +388,7 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ onSaveToLibrary })
                   >
                     {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 fill-current" />}
                     <span>{isPlaying ? 'Pause' : 'Play Audio'}</span>
+                    <kbd className="ml-1 px-1.5 py-0.5 rounded bg-black/30 border border-white/20 text-[10px] font-mono text-rose-200 font-bold">Space</kbd>
                   </button>
 
                   <button
@@ -345,7 +398,7 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ onSaveToLibrary })
                         setProgress(0);
                       }
                     }}
-                    className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs transition-colors"
+                    className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs transition-colors cursor-pointer"
                     title="Restart from beginning"
                   >
                     <RotateCcw className="w-4 h-4" />
@@ -356,17 +409,18 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ onSaveToLibrary })
                   {/* Settings button */}
                   <button
                     onClick={() => setIsExportModalOpen(true)}
-                    className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors"
-                    title="Configure Sample Rate (44.1kHz / 48kHz) & Bitrate (128k, 192k, 320k)"
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors cursor-pointer"
+                    title="Configure Sample Rate & Bitrate (E)"
                   >
                     <Settings2 className="w-3.5 h-3.5 text-rose-400" />
                     <span>Settings ({(exportConfig.sampleRate / 1000).toFixed(1)}kHz &bull; {exportConfig.bitrate}k)</span>
+                    <kbd className="ml-1 px-1.5 py-0.5 rounded bg-slate-900 border border-slate-700 text-[10px] font-mono text-rose-300 font-bold">E</kbd>
                   </button>
 
                   {/* Download button */}
                   <button
                     onClick={() => handleExportWithConfig(exportConfig)}
-                    className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-md shadow-emerald-600/20 transition-all"
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-md shadow-emerald-600/20 transition-all cursor-pointer"
                   >
                     <Download className="w-3.5 h-3.5" />
                     <span>Download ({exportConfig.format.toUpperCase()} &bull; {(exportConfig.sampleRate / 1000).toFixed(1)}kHz)</span>
@@ -374,23 +428,15 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ onSaveToLibrary })
 
                   <button
                     onClick={handleSaveToLibrary}
-                    className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium border transition-colors ${
+                    className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium border transition-colors cursor-pointer ${
                       isSaved
                         ? 'bg-emerald-950 text-emerald-300 border-emerald-800'
                         : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'
                     }`}
                   >
-                    {isSaved ? (
-                      <>
-                        <Check className="w-3.5 h-3.5 text-emerald-400" />
-                        <span>Saved!</span>
-                      </>
-                    ) : (
-                      <>
-                        <BookmarkPlus className="w-3.5 h-3.5 text-indigo-400" />
-                        <span>Save to Library</span>
-                      </>
-                    )}
+                    {isSaved ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <BookmarkPlus className="w-3.5 h-3.5 text-amber-400" />}
+                    <span>{isSaved ? 'Saved to Library' : 'Save'}</span>
+                    <kbd className="ml-1 px-1 py-0.2 rounded bg-slate-900 border border-slate-700 text-[10px] font-mono text-slate-300">S</kbd>
                   </button>
                 </div>
               </div>

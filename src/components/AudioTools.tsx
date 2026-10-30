@@ -16,6 +16,7 @@ import {
   sliceAudioBufferData,
   encodeWAV,
 } from '../utils/audioMath';
+import { VOICETOOL_ACTION_EVENT } from '../utils/keyboardShortcuts';
 import {
   Sliders,
   Upload,
@@ -308,6 +309,38 @@ export const AudioTools: React.FC<AudioToolsProps> = ({
     setStatusMessage(successMsg);
   };
 
+  // Listen for global studio keyboard actions
+  useEffect(() => {
+    const handleAction = (e: Event) => {
+      const customEvent = e as CustomEvent<{ action: string }>;
+      const action = customEvent.detail?.action;
+      if (action === 'toggle-play') {
+        if (isPreviewingTrim) {
+          if (isPlaying) {
+            handlePause();
+          } else {
+            handlePlayTrimmedRegion(isTrimLooping);
+          }
+        } else {
+          handlePlay();
+        }
+      } else if (action === 'export') {
+        setIsExportModalOpen(true);
+      } else if (action === 'toggle-limiter') {
+        setEnableLimiter((prev) => !prev);
+      } else if (action === 'auto-normalize') {
+        handleAutoNormalize();
+      } else if (action === 'toggle-loop') {
+        setIsTrimLooping((prev) => !prev);
+      } else if (action === 'close-modal') {
+        setIsExportModalOpen(false);
+      }
+    };
+
+    window.addEventListener(VOICETOOL_ACTION_EVENT, handleAction);
+    return () => window.removeEventListener(VOICETOOL_ACTION_EVENT, handleAction);
+  }, [isPlaying, isPreviewingTrim, isTrimLooping, speed, trimStart, trimEnd, audioUrl, duration, normalizationEnabled, customTargetDb, selectedPresetId, measuredPeakDb, measuredRmsDb, isKhmer]);
+
   const handleExportWithConfig = (cfg: AudioExportConfig) => {
     setExportConfig(cfg);
 
@@ -479,6 +512,7 @@ export const AudioTools: React.FC<AudioToolsProps> = ({
             <div className="flex items-center justify-between pt-2 flex-wrap gap-2">
               <button
                 onClick={handlePlay}
+                data-testid="tools-play-btn"
                 className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-600/20 transition-all cursor-pointer"
               >
                 {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 fill-current" />}
@@ -487,18 +521,21 @@ export const AudioTools: React.FC<AudioToolsProps> = ({
                     ? isKhmer ? 'ផ្អាកសំឡេង' : 'Pause'
                     : isKhmer ? 'ចាក់សំឡេងដែលបានកែ' : 'Play Processed'}
                 </span>
+                <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-[10px] font-mono rounded bg-indigo-700/80 text-indigo-200 border border-indigo-500/50">Space</kbd>
               </button>
 
               <div className="flex items-center gap-2 flex-wrap">
                 <button
                   onClick={() => setIsExportModalOpen(true)}
+                  data-testid="tools-export-settings-btn"
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors cursor-pointer"
-                  title="Configure Sample Rate & Bitrate"
+                  title="Configure Sample Rate & Bitrate (E)"
                 >
                   <Settings2 className="w-3.5 h-3.5 text-indigo-400" />
                   <span>
                     {(exportConfig.sampleRate / 1000).toFixed(1)}kHz &bull; {exportConfig.bitrate}k
                   </span>
+                  <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-[9px] font-mono rounded bg-slate-700 text-slate-300 border border-slate-600">E</kbd>
                 </button>
 
                 <button
@@ -725,6 +762,7 @@ export const AudioTools: React.FC<AudioToolsProps> = ({
             <button
               onClick={handleAutoNormalize}
               disabled={!normalizationEnabled}
+              data-testid="tools-auto-normalize-btn"
               className={`w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-xs font-bold text-white shadow-md transition-all cursor-pointer ${
                 normalizationEnabled
                   ? 'bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 shadow-indigo-600/30 active:scale-[0.98]'
@@ -737,6 +775,7 @@ export const AudioTools: React.FC<AudioToolsProps> = ({
                   ? 'វិភាគ & ធ្វើឱ្យកម្រិតស្មើគ្នា (Auto-Normalize Audio)'
                   : 'Analyze & Auto-Normalize Levels'}
               </span>
+              <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-[10px] font-mono rounded bg-black/20 text-white/90 border border-white/20">N</kbd>
             </button>
 
             {/* Limiter Protection Checkbox */}

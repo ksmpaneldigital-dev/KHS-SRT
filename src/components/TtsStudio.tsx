@@ -6,6 +6,7 @@ import { voiceEngine } from '../services/voiceEngine';
 import { AudioWaveVisualizer } from './AudioWaveVisualizer';
 import { ExportSettingsModal } from './ExportSettingsModal';
 import { AudioExportConfig, DEFAULT_EXPORT_CONFIG } from '../utils/audioMath';
+import { VOICETOOL_ACTION_EVENT } from '../utils/keyboardShortcuts';
 import {
   Volume2,
   Play,
@@ -181,6 +182,25 @@ export const TtsStudio: React.FC<TtsStudioProps> = ({ onSaveToLibrary, uiLang = 
     link.click();
     document.body.removeChild(link);
   };
+
+  // Listen for keyboard shortcuts dispatched from global hub
+  useEffect(() => {
+    const handleAction = (e: any) => {
+      const action = e.detail?.action;
+      if (action === 'toggle-play') {
+        handlePlayPreview();
+      } else if (action === 'export') {
+        setIsExportModalOpen(true);
+      } else if (action === 'save-library') {
+        handleSaveItem();
+      } else if (action === 'close-modal') {
+        setIsExportModalOpen(false);
+      }
+    };
+
+    window.addEventListener(VOICETOOL_ACTION_EVENT, handleAction);
+    return () => window.removeEventListener(VOICETOOL_ACTION_EVENT, handleAction);
+  }, [isPlaying, scriptText, selectedVoice, rate, pitch, volume, audioUrl, audioDuration]);
 
   const handleAudioTimeUpdate = () => {
     if (audioRef.current && audioDuration > 0) {
@@ -437,7 +457,7 @@ export const TtsStudio: React.FC<TtsStudioProps> = ({ onSaveToLibrary, uiLang = 
                 <button
                   onClick={handlePlayPreview}
                   disabled={!scriptText.trim()}
-                  className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all shadow-md ${
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all shadow-md cursor-pointer ${
                     isPlaying
                       ? 'bg-rose-600 hover:bg-rose-500 text-white shadow-rose-600/30'
                       : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-600/30'
@@ -446,12 +466,14 @@ export const TtsStudio: React.FC<TtsStudioProps> = ({ onSaveToLibrary, uiLang = 
                   {isPlaying ? (
                     <>
                       <Square className="w-4 h-4 fill-current" />
-                      <span>Stop Speech</span>
+                      <span>{isKhmer ? 'បញ្ឈប់ការអាន' : 'Stop Speech'}</span>
+                      <kbd className="ml-1 px-1.5 py-0.5 rounded bg-black/30 border border-white/20 text-[10px] font-mono text-rose-200 font-bold">Space</kbd>
                     </>
                   ) : (
                     <>
                       <Play className="w-4 h-4 fill-current" />
-                      <span>Preview Speech</span>
+                      <span>{isKhmer ? 'ចាក់ស្តាប់សាកល្បង' : 'Preview Speech'}</span>
+                      <kbd className="ml-1 px-1.5 py-0.5 rounded bg-black/30 border border-white/20 text-[10px] font-mono text-indigo-200 font-bold">Space</kbd>
                     </>
                   )}
                 </button>
@@ -459,7 +481,7 @@ export const TtsStudio: React.FC<TtsStudioProps> = ({ onSaveToLibrary, uiLang = 
                 <button
                   onClick={() => handleGenerateWav(false)}
                   disabled={isGeneratingWav || !scriptText.trim()}
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors"
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors cursor-pointer"
                   title="Synthesize and render high-quality WAV audio file"
                 >
                   <span>Re-render WAV</span>
@@ -471,20 +493,21 @@ export const TtsStudio: React.FC<TtsStudioProps> = ({ onSaveToLibrary, uiLang = 
                 <button
                   onClick={() => setIsExportModalOpen(true)}
                   disabled={!scriptText.trim()}
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors"
-                  title="Configure Sample Rate (44.1kHz / 48kHz) & Bitrate (128k, 192k, 320k)"
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors cursor-pointer"
+                  title="Configure Sample Rate (44.1kHz / 48kHz) & Bitrate (128k, 192k, 320k) (E)"
                 >
                   <Settings2 className="w-3.5 h-3.5 text-indigo-400" />
                   <span>
                     Settings ({(exportConfig.sampleRate / 1000).toFixed(1)}kHz &bull; {exportConfig.bitrate}k)
                   </span>
+                  <kbd className="ml-1 px-1.5 py-0.5 rounded bg-slate-900 border border-slate-700 text-[10px] font-mono text-indigo-300 font-bold">E</kbd>
                 </button>
 
                 {/* Direct Download with Current Settings */}
                 <button
                   onClick={() => handleExportWithConfig(exportConfig)}
                   disabled={!scriptText.trim()}
-                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-md shadow-emerald-600/20 transition-all active:scale-95"
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-md shadow-emerald-600/20 transition-all active:scale-95 cursor-pointer"
                 >
                   <Download className="w-3.5 h-3.5" />
                   <span>Download ({exportConfig.format.toUpperCase()} &bull; {(exportConfig.sampleRate / 1000).toFixed(1)}kHz)</span>
@@ -494,7 +517,7 @@ export const TtsStudio: React.FC<TtsStudioProps> = ({ onSaveToLibrary, uiLang = 
                 <button
                   onClick={handleSaveItem}
                   disabled={!scriptText.trim()}
-                  className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium border transition-colors ${
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium border transition-colors cursor-pointer ${
                     isSaved
                       ? 'bg-emerald-950 text-emerald-300 border-emerald-800'
                       : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'
@@ -508,7 +531,8 @@ export const TtsStudio: React.FC<TtsStudioProps> = ({ onSaveToLibrary, uiLang = 
                   ) : (
                     <>
                       <BookmarkPlus className="w-3.5 h-3.5 text-indigo-400" />
-                      <span>Save to Library</span>
+                      <span>Save</span>
+                      <kbd className="ml-1 px-1 py-0.2 rounded bg-slate-900 border border-slate-700 text-[10px] font-mono text-slate-300">S</kbd>
                     </>
                   )}
                 </button>

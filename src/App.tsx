@@ -12,6 +12,13 @@ import { PitchAnalyzer } from './components/PitchAnalyzer';
 import { VoiceRecorder } from './components/VoiceRecorder';
 import { AudioTools } from './components/AudioTools';
 import { LibraryModal } from './components/LibraryModal';
+import { KeyboardShortcutsModal } from './components/KeyboardShortcutsModal';
+import { ShortcutToastHud, ShortcutToastData } from './components/ShortcutToastHud';
+import {
+  matchKeyboardShortcut,
+  dispatchStudioAction,
+  ShortcutAction,
+} from './utils/keyboardShortcuts';
 import { Sparkles, Shield, Cpu, Github, ExternalLink } from 'lucide-react';
 
 const STORAGE_KEY = 'voicetool_library_v1';
@@ -58,6 +65,122 @@ export default function App() {
     } catch {}
   }, []);
 
+  const [isShortcutsModalOpen, setIsShortcutsModalOpen] = useState<boolean>(false);
+  const [toastHud, setToastHud] = useState<ShortcutToastData | null>(null);
+
+  // Global Keyboard Shortcuts Listener
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const match = matchKeyboardShortcut(e);
+      if (!match) return;
+
+      if (match.action === 'open-shortcuts') {
+        e.preventDefault();
+        setIsShortcutsModalOpen((prev) => !prev);
+        setToastHud({
+          id: `${Date.now()}`,
+          action: 'open-shortcuts',
+          keyLabel: '?',
+          messageEn: 'Keyboard Shortcuts',
+          messageKm: 'តារាងផ្លូវកាត់ក្ដារចុច',
+        });
+        return;
+      }
+
+      if (match.action === 'close-modal') {
+        if (isShortcutsModalOpen) {
+          e.preventDefault();
+          setIsShortcutsModalOpen(false);
+          return;
+        }
+        dispatchStudioAction('close-modal');
+        return;
+      }
+
+      if (match.action === 'switch-tab' && match.targetTab) {
+        e.preventDefault();
+        setActiveTab(match.targetTab);
+        setToastHud({
+          id: `${Date.now()}`,
+          action: 'switch-tab',
+          keyLabel: match.badgeText || match.key,
+          messageEn: match.descriptionEn,
+          messageKm: match.descriptionKm,
+        });
+        return;
+      }
+
+      if (match.action === 'toggle-record') {
+        e.preventDefault();
+        if (activeTab !== 'recorder') {
+          setActiveTab('recorder');
+        }
+        dispatchStudioAction('toggle-record');
+        setToastHud({
+          id: `${Date.now()}`,
+          action: 'toggle-record',
+          keyLabel: match.badgeText || 'R',
+          messageEn: 'Voice Recording Toggled',
+          messageKm: 'បានចាប់ផ្តើម / បញ្ឈប់ការថត',
+        });
+        return;
+      }
+
+      if (match.action === 'toggle-play') {
+        e.preventDefault();
+        dispatchStudioAction('toggle-play');
+        setToastHud({
+          id: `${Date.now()}`,
+          action: 'toggle-play',
+          keyLabel: match.badgeText || 'Space',
+          messageEn: 'Playback / Speech Toggled',
+          messageKm: 'បានចាក់ / ផ្អាកសំឡេង',
+        });
+        return;
+      }
+
+      if (match.action === 'export') {
+        e.preventDefault();
+        dispatchStudioAction('export');
+        setToastHud({
+          id: `${Date.now()}`,
+          action: 'export',
+          keyLabel: match.badgeText || 'E',
+          messageEn: 'Export Settings Opened',
+          messageKm: 'បានបើកផ្ទាំងទាញយកសំឡេង',
+        });
+        return;
+      }
+
+      if (match.action === 'save-library') {
+        e.preventDefault();
+        dispatchStudioAction('save-library');
+        setToastHud({
+          id: `${Date.now()}`,
+          action: 'save-library',
+          keyLabel: 'S',
+          messageEn: 'Saved to Library',
+          messageKm: 'បានរក្សាទុកក្នុងបណ្ណាល័យ',
+        });
+        return;
+      }
+
+      // Other actions (pause-record, loop, limiter, auto-normalize)
+      e.preventDefault();
+      dispatchStudioAction(match.action);
+      setToastHud({
+        id: `${Date.now()}`,
+        action: match.action,
+        keyLabel: match.badgeText || match.key.toUpperCase(),
+        messageEn: match.descriptionEn,
+        messageKm: match.descriptionKm,
+      });
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [activeTab, isShortcutsModalOpen]);
+
   const handleSaveToLibrary = (item: SavedAudioItem) => {
     setLibraryItems((prev) => {
       const updated = [item, ...prev];
@@ -96,6 +219,7 @@ export default function App() {
         libraryCount={libraryItems.length}
         uiLang={uiLang}
         setUiLang={handleSetUiLang}
+        onOpenShortcuts={() => setIsShortcutsModalOpen(true)}
       />
 
       {/* Main Studio Viewport */}
@@ -113,6 +237,20 @@ export default function App() {
           />
         )}
       </main>
+
+      {/* Floating HUD Toast Notification for Shortcut Keypresses */}
+      <ShortcutToastHud
+        toast={toastHud}
+        onDismiss={() => setToastHud(null)}
+        isKhmer={isKhmer}
+      />
+
+      {/* Keyboard Shortcuts Cheat Sheet Modal */}
+      <KeyboardShortcutsModal
+        isOpen={isShortcutsModalOpen}
+        onClose={() => setIsShortcutsModalOpen(false)}
+        uiLang={uiLang}
+      />
 
       {/* Footer */}
       <footer className="border-t border-slate-800/80 bg-slate-950/80 mt-12 py-6 text-xs text-slate-400">

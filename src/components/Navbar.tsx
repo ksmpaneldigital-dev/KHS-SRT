@@ -9,6 +9,7 @@ import {
   FolderHeart,
   Sparkles,
   Languages,
+  Keyboard,
 } from 'lucide-react';
 
 interface NavbarProps {
@@ -17,6 +18,7 @@ interface NavbarProps {
   libraryCount: number;
   uiLang: AppLanguage;
   setUiLang: (lang: AppLanguage) => void;
+  onOpenShortcuts?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -25,6 +27,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   libraryCount,
   uiLang,
   setUiLang,
+  onOpenShortcuts,
 }) => {
   const isKhmer = uiLang === 'km';
 
@@ -36,6 +39,7 @@ export const Navbar: React.FC<NavbarProps> = ({
       icon: Volume2,
       badge: isKhmer ? 'សំឡេង AI' : 'AI Neural',
       badgeColor: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30',
+      shortcutKey: '1',
     },
     {
       id: 'subtitles' as ActiveTab,
@@ -44,6 +48,7 @@ export const Navbar: React.FC<NavbarProps> = ({
       icon: Subtitles,
       badge: isKhmer ? 'បញ្ចូលសំឡេង' : 'Auto Dub',
       badgeColor: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
+      shortcutKey: '2',
     },
     {
       id: 'pitch' as ActiveTab,
@@ -52,6 +57,7 @@ export const Navbar: React.FC<NavbarProps> = ({
       icon: Activity,
       badge: 'Live F0',
       badgeColor: 'bg-pink-500/20 text-pink-300 border-pink-500/30',
+      shortcutKey: '3',
     },
     {
       id: 'recorder' as ActiveTab,
@@ -60,6 +66,7 @@ export const Navbar: React.FC<NavbarProps> = ({
       icon: Mic,
       badge: null,
       badgeColor: '',
+      shortcutKey: '4',
     },
     {
       id: 'tools' as ActiveTab,
@@ -68,6 +75,7 @@ export const Navbar: React.FC<NavbarProps> = ({
       icon: Sliders,
       badge: null,
       badgeColor: '',
+      shortcutKey: '5',
     },
     {
       id: 'library' as ActiveTab,
@@ -76,6 +84,7 @@ export const Navbar: React.FC<NavbarProps> = ({
       icon: FolderHeart,
       badge: libraryCount > 0 ? `${libraryCount}` : null,
       badgeColor: 'bg-amber-500/20 text-amber-300 border-amber-500/30 font-mono',
+      shortcutKey: '6',
     },
   ];
 
@@ -152,11 +161,29 @@ export const Navbar: React.FC<NavbarProps> = ({
 
             <button
               onClick={() => setActiveTab('pitch')}
-              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-indigo-500/10 to-purple-500/10 border border-indigo-500/30 text-xs font-medium text-indigo-300 hover:bg-indigo-500/20 transition-all"
+              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-indigo-500/10 to-purple-500/10 border border-indigo-500/30 text-xs font-medium text-indigo-300 hover:bg-indigo-500/20 transition-all cursor-pointer"
             >
               <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
               <span>{isKhmer ? 'ហាត់កម្រិតសំឡេង' : 'Voice Therapy'}</span>
             </button>
+
+            {onOpenShortcuts && (
+              <button
+                type="button"
+                onClick={onOpenShortcuts}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-xs text-slate-300 border border-slate-800 hover:border-slate-700 transition-colors cursor-pointer"
+                title={isKhmer ? 'ផ្លូវកាត់ក្ដារចុច (?)' : 'Keyboard Shortcuts (?)'}
+                data-testid="navbar-shortcuts-btn"
+              >
+                <Keyboard className="w-3.5 h-3.5 text-indigo-400" />
+                <span className="hidden md:inline text-slate-300">
+                  {isKhmer ? 'ផ្លូវកាត់' : 'Shortcuts'}
+                </span>
+                <kbd className="px-1.5 py-0.2 rounded bg-slate-800 border border-slate-700 text-[10px] font-mono text-indigo-300">
+                  ?
+                </kbd>
+              </button>
+            )}
           </div>
         </div>
 
@@ -169,7 +196,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all whitespace-nowrap shrink-0 ${
+                className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all whitespace-nowrap shrink-0 cursor-pointer ${
                   isActive
                     ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
                     : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/80'
@@ -178,6 +205,17 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-slate-400'}`} />
                 <span className="hidden sm:inline">{tab.label}</span>
                 <span className="sm:hidden">{tab.shortLabel}</span>
+
+                <kbd
+                  className={`hidden md:inline text-[9px] font-mono px-1 py-0.2 rounded border transition-colors ${
+                    isActive
+                      ? 'bg-indigo-700/80 text-indigo-100 border-indigo-400/40'
+                      : 'bg-slate-800/80 text-slate-400 border-slate-700/60'
+                  }`}
+                  title={isKhmer ? `ចុចលេខ ${tab.shortcutKey} ដើម្បីប្តូរ` : `Press ${tab.shortcutKey} to switch`}
+                >
+                  {tab.shortcutKey}
+                </kbd>
 
                 {tab.badge && (
                   <span
