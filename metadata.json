@@ -1,0 +1,6 @@
+{
+  "name": "VoiceTool - Online AI Text to Speech & Vocal Studio",
+  "description": "Comprehensive clone of VoiceTool featuring real-time AI Text-to-Speech, Subtitle-to-Speech (SRT), Vocal Pitch Analyzer, Microphone Recorder, and Audio Tools.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
