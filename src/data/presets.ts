@@ -2,6 +2,50 @@ import { VoiceProfile, PracticeSentence } from '../types';
 
 export const CURATED_VOICES: VoiceProfile[] = [
   {
+    id: 'km-KH-bopha',
+    name: 'Bopha (បុប្ផា)',
+    lang: 'km-KH',
+    languageLabel: 'Khmer (ភាសាខ្មែរ)',
+    country: '🇰🇭',
+    gender: 'female',
+    tone: 'ទន់ភ្លន់ រលូន និងច្បាស់លាស់ (Gentle, Smooth & Expressive)',
+    tags: ['Narration', 'Audiobook', 'Natural'],
+    sampleText: 'សូមស្វាគមន៍មកកាន់ VoiceTool! បង្កើតសំឡេងនិយាយបែបធម្មជាតិ និងច្បាស់ល្អ។',
+  },
+  {
+    id: 'km-KH-sovan',
+    name: 'Sovan (សុវណ្ណ)',
+    lang: 'km-KH',
+    languageLabel: 'Khmer (ភាសាខ្មែរ)',
+    country: '🇰🇭',
+    gender: 'male',
+    tone: 'រឹងមាំ ស៊ីជម្រៅ និងច្បាស់ល្អ (Resonant, Deep & Confident)',
+    tags: ['News', 'Documentary', 'Formal'],
+    sampleText: 'បច្ចេកវិទ្យាសំឡេងជំនាន់ថ្មី ជួយសម្រួលដល់ការផលិតវីដេអូ និងការអប់រំ។',
+  },
+  {
+    id: 'km-KH-chanthou',
+    name: 'Chanthou (ចន្ធូ)',
+    lang: 'km-KH',
+    languageLabel: 'Khmer (ភាសាខ្មែរ)',
+    country: '🇰🇭',
+    gender: 'female',
+    tone: 'រួសរាយ ស្រទន់ និងទាក់ទាញ (Bright, Friendly & Commercial)',
+    tags: ['Commercial', 'Podcast', 'E-Learning'],
+    sampleText: 'ជំរាបសួរ! តើអ្នកចង់បម្លែងអត្ថបទទៅជាសំឡេងនិយាយដែរឬទេ?',
+  },
+  {
+    id: 'km-KH-piseth',
+    name: 'Piseth (ពិសិដ្ឋ)',
+    lang: 'km-KH',
+    languageLabel: 'Khmer (ភាសាខ្មែរ)',
+    country: '🇰🇭',
+    gender: 'male',
+    tone: 'វិជ្ជាជីវៈ និងច្បាស់លាស់ (Professional, News & Corporate)',
+    tags: ['Tutorial', 'Voiceover', 'Business'],
+    sampleText: 'កម្មវិធីបម្លែងអត្ថបទទៅជាសំឡេងដ៏មានប្រសិទ្ធភាពសម្រាប់អ្នកបង្កើតមាតិកា។',
+  },
+  {
     id: 'en-US-emma',
     name: 'Emma',
     lang: 'en-US',
@@ -137,6 +181,16 @@ export const CURATED_VOICES: VoiceProfile[] = [
 
 export const SAMPLE_SCRIPTS = [
   {
+    title: 'ស្គ្រីបពាណិជ្ជកម្មខ្មែរ (Khmer Promo)',
+    category: 'Commercial',
+    text: `សូមស្វាគមន៍មកកាន់ VoiceTool ស្ទូឌីយោសំឡេងឆ្លាតវៃ! [pause 0.5s] បម្លែងអត្ថបទរបស់អ្នកទៅជាសំឡេងនិយាយបែបធម្មជាតិ និងច្បាស់ល្អ។ [pause 0.8s] អ្នកអាចទាញយកជាឯកសារ WAV ឬ MP3 បានភ្លាមៗ។ សំឡេងរបស់អ្នក កាន់តែល្អឥតខ្ចោះ។`,
+  },
+  {
+    title: 'ប្រវត្តិប្រាសាទអង្គរវត្ត (Khmer History)',
+    category: 'Audiobook',
+    text: `ប្រាសាទអង្គរវត្ត គឺជាបេតិកភណ្ឌពិភពលោកដ៏ល្បីល្បាញនៃប្រទេសកម្ពុជា។ [pause 0.6s] សាងសង់ឡើងនៅដើមសតវត្សរ៍ទី១២ ដោយព្រះបាទសូរ្យវរ្ម័នទី២។ [pause 1.0s] ស្ថាបត្យកម្មដ៏ល្អវិចិត្រនេះ បង្ហាញពីភាពរុងរឿងនៃអរិយធម៌ខ្មែរ។`,
+  },
+  {
     title: 'Product Launch Trailer',
     category: 'Commercial',
     text: `Meet VoiceTool: the next-generation audio workstation for creators. [pause 0.5s] Transform any script into studio-quality voiceovers with natural pacing, customizable pitch, and synchronized subtitle dubbing. [pause 0.8s] Download in uncompressed WAV or stream directly. Your voice, perfected.`,
@@ -164,6 +218,33 @@ export const SAMPLE_SCRIPTS = [
 ];
 
 export const PRACTICE_SENTENCES: PracticeSentence[] = [
+  {
+    id: 'khmer-resonance',
+    title: 'ការហាត់បញ្ចេញសម្លេងខ្មែរ (Khmer Resonance)',
+    category: 'Resonance',
+    targetPitchMinHz: 170,
+    targetPitchMaxHz: 235,
+    sentence: 'ព្រះអាទិត្យរះបំភ្លឺលើវាលស្រែពណ៌បៃតងខ្ចី នាពេលព្រឹកព្រលឹមស្រស់ស្រាយ។',
+    tip: 'រក្សាកម្រិតសំឡេងឱ្យនៅខាងមុខផ្ទៃមុខ និងបញ្ចេញសូរស្រៈឱ្យបានច្បាស់ល្អ។',
+  },
+  {
+    id: 'khmer-masculine',
+    title: 'ការហាត់សម្លេងទ្រូងខ្មែរ (Khmer Chest Resonance)',
+    category: 'Masculinization',
+    targetPitchMinHz: 95,
+    targetPitchMaxHz: 145,
+    sentence: 'ទឹកជ្រោះហូរធ្លាក់ពីលើកំពូលភ្នំ បន្លឺសូរសំឡេងយ៉ាងរណ្តំពេញព្រៃព្រឹក្សា។',
+    tip: 'បន្ធូរអារម្មណ៍សាច់ដុំបំពង់ក និងទាញរំញ័រចុះក្រោមទៅកាន់ដើមទ្រូង។',
+  },
+  {
+    id: 'khmer-daily',
+    title: 'ការនិយាយប្រចាំថ្ងៃ (Khmer Daily Speech)',
+    category: 'Articulation',
+    targetPitchMinHz: 165,
+    targetPitchMaxHz: 225,
+    sentence: 'ជំរាបសួរ! សូមស្វាគមន៍មកកាន់សេវាបំរើអតិថិជន VoiceTool តើខ្ញុំអាចជួយអ្វីលោកអ្នកបានដែរ?',
+    tip: 'ញញឹមថ្នមៗពេលនិយាយ ដើម្បីឱ្យសូរសំឡេងកាន់តែស្រទន់ និងមានភាពរួសរាយ។',
+  },
   {
     id: 'rainbow-1',
     title: 'The Rainbow Passage (Section 1)',
@@ -235,3 +316,19 @@ Emma: You can assign distinct characters, preview line-by-line, and export audio
 4
 00:00:13,200 --> 00:00:16,800
 Arthur: Perfect for YouTube dubbing, e-learning courses, and multilingual translation!`;
+
+export const SAMPLE_SRT_KHMER = `1
+00:00:01,000 --> 00:00:04,200
+បុប្ផា: សូមស្វាគមន៍មកកាន់ VoiceTool ស្ទូឌីយោបម្លែងអត្ថបទទៅជាសំឡេង។
+
+2
+00:00:04,800 --> 00:00:08,500
+សុវណ្ណ: មុខងារបម្លែងចំណងជើងរង (SRT) ជួយបញ្ចូលសំឡេងស្វ័យប្រវត្តិតាមពេលវេលាកំណត់។
+
+3
+00:00:09,100 --> 00:00:12,600
+បុប្ផា: លោកអ្នកអាចជ្រើសរើសសំឡេងតួអង្គ និងទាញយកឯកសារសំឡេងបានយ៉ាងងាយស្រួល។
+
+4
+00:00:13,200 --> 00:00:16,800
+សុវណ្ណ: ស័ក្តិសមបំផុតសម្រាប់វីដេអូ YouTube, មេរៀនអនឡាញ និងការផ្សាយពាណិជ្ជកម្ម!`;

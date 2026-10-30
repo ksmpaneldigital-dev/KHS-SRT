@@ -1,5 +1,5 @@
 import React from 'react';
-import { ActiveTab } from '../types';
+import { ActiveTab, AppLanguage } from '../types';
 import {
   Mic,
   Volume2,
@@ -8,64 +8,71 @@ import {
   Sliders,
   FolderHeart,
   Sparkles,
+  Languages,
 } from 'lucide-react';
 
 interface NavbarProps {
   activeTab: ActiveTab;
   setActiveTab: (tab: ActiveTab) => void;
   libraryCount: number;
+  uiLang: AppLanguage;
+  setUiLang: (lang: AppLanguage) => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
   activeTab,
   setActiveTab,
   libraryCount,
+  uiLang,
+  setUiLang,
 }) => {
+  const isKhmer = uiLang === 'km';
+
   const tabs = [
     {
       id: 'tts' as ActiveTab,
-      label: 'Text to Speech',
-      shortLabel: 'TTS Studio',
+      label: isKhmer ? 'បម្លែងអត្ថបទជាសំឡេង (TTS)' : 'Text to Speech',
+      shortLabel: isKhmer ? 'TTS ខ្មែរ' : 'TTS Studio',
       icon: Volume2,
-      badge: 'AI Neural',
+      badge: isKhmer ? 'សំឡេង AI' : 'AI Neural',
       badgeColor: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30',
     },
     {
       id: 'subtitles' as ActiveTab,
-      label: 'Subtitle to Speech',
-      shortLabel: 'SRT Studio',
+      label: isKhmer ? 'ចំណងជើងរងជាសំឡេង (SRT)' : 'Subtitle to Speech',
+      shortLabel: isKhmer ? 'SRT ខ្មែរ' : 'SRT Studio',
       icon: Subtitles,
-      badge: 'Auto Dub',
+      badge: isKhmer ? 'បញ្ចូលសំឡេង' : 'Auto Dub',
       badgeColor: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
     },
     {
       id: 'pitch' as ActiveTab,
-      label: 'Pitch & Vocal Analyzer',
-      shortLabel: 'VoiceTools',
+      label: isKhmer ? 'វិភាគកម្រិតសំឡេង (Pitch)' : 'Pitch & Vocal Analyzer',
+      shortLabel: isKhmer ? 'កម្រិតសំឡេង' : 'VoiceTools',
       icon: Activity,
       badge: 'Live F0',
       badgeColor: 'bg-pink-500/20 text-pink-300 border-pink-500/30',
     },
     {
       id: 'recorder' as ActiveTab,
-      label: 'Voice Recorder',
-      shortLabel: 'Recorder',
+      label: isKhmer ? 'ថតសំឡេងស្ទូឌីយោ' : 'Voice Recorder',
+      shortLabel: isKhmer ? 'ថតសំឡេង' : 'Recorder',
       icon: Mic,
       badge: null,
       badgeColor: '',
     },
     {
       id: 'tools' as ActiveTab,
-      label: 'Audio Converter',
-      shortLabel: 'Tools',
+      label: isKhmer ? 'ឧបករណ៍បំប្លែងសំឡេង' : 'Audio Converter',
+      shortLabel: isKhmer ? 'ឧបករណ៍' : 'Tools',
       icon: Sliders,
       badge: null,
       badgeColor: '',
     },
     {
       id: 'library' as ActiveTab,
-      label: 'Saved Audio',
-      shortLabel: 'Library',
+      label: isKhmer ? 'សំឡេងរក្សាទុក' : 'Saved Audio',
+      shortLabel: isKhmer ? 'បណ្ណាល័យ' : 'Library',
       icon: FolderHeart,
       badge: libraryCount > 0 ? `${libraryCount}` : null,
       badgeColor: 'bg-amber-500/20 text-amber-300 border-amber-500/30 font-mono',
@@ -73,7 +80,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   ];
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-slate-800 bg-slate-950/90 backdrop-blur-md">
+    <header className="sticky top-0 z-40 w-full border-b border-slate-800 bg-slate-950/95 backdrop-blur-md">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo Brand */}
@@ -91,28 +98,64 @@ export const Navbar: React.FC<NavbarProps> = ({
                   Voice<span className="text-indigo-400">Tool</span>
                 </span>
                 <span className="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-                  Studio v2.5
+                  {isKhmer ? 'ជំនាន់ ២.៥' : 'Studio v2.5'}
                 </span>
               </div>
               <p className="text-xs text-slate-400 hidden sm:block">
-                All-in-One Voice, Speech &amp; Audio Workstation
+                {isKhmer
+                  ? 'ស្ទូឌីយោសំឡេងឆ្លាតវៃ បម្លែងអត្ថបទ និងវិភាគកម្រិតសំឡេង'
+                  : 'All-in-One Voice, Speech & Audio Workstation'}
               </p>
             </div>
           </div>
 
-          {/* Quick status / Pro badge */}
+          {/* Quick status / Pro badge / Language Toggle */}
           <div className="flex items-center gap-3">
-            <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-xs text-slate-300">
+            <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-xs text-slate-300">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-              <span>Web Audio &amp; Neural Engine Ready</span>
+              <span>
+                {isKhmer
+                  ? 'ប្រព័ន្ធ Web Audio & Speech រួចរាល់'
+                  : 'Web Audio & Neural Engine Ready'}
+              </span>
+            </div>
+
+            {/* Language Switcher Pill */}
+            <div className="flex items-center p-1 rounded-lg bg-slate-900 border border-slate-800 text-xs">
+              <button
+                type="button"
+                onClick={() => setUiLang('km')}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md font-medium transition-colors ${
+                  isKhmer
+                    ? 'bg-indigo-600 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+                title="ប្តូរទៅភាសាខ្មែរ"
+              >
+                <span>🇰🇭</span>
+                <span className="font-sans">ខ្មែរ</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setUiLang('en')}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md font-medium transition-colors ${
+                  !isKhmer
+                    ? 'bg-indigo-600 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+                title="Switch to English"
+              >
+                <span>🇺🇸</span>
+                <span>EN</span>
+              </button>
             </div>
 
             <button
               onClick={() => setActiveTab('pitch')}
-              className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-indigo-500/10 to-purple-500/10 border border-indigo-500/30 text-xs font-medium text-indigo-300 hover:bg-indigo-500/20 transition-all"
+              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-indigo-500/10 to-purple-500/10 border border-indigo-500/30 text-xs font-medium text-indigo-300 hover:bg-indigo-500/20 transition-all"
             >
               <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
-              <span>Voice Therapy &amp; Training</span>
+              <span>{isKhmer ? 'ហាត់កម្រិតសំឡេង' : 'Voice Therapy'}</span>
             </button>
           </div>
         </div>

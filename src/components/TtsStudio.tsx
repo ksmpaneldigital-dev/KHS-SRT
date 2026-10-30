@@ -20,12 +20,15 @@ import {
   Languages,
   Settings2,
 } from 'lucide-react';
+import { AppLanguage } from '../types';
 
 interface TtsStudioProps {
   onSaveToLibrary: (item: SavedAudioItem) => void;
+  uiLang?: AppLanguage;
 }
 
-export const TtsStudio: React.FC<TtsStudioProps> = ({ onSaveToLibrary }) => {
+export const TtsStudio: React.FC<TtsStudioProps> = ({ onSaveToLibrary, uiLang = 'en' }) => {
+  const isKhmer = uiLang === 'km';
   const [scriptText, setScriptText] = useState<string>(SAMPLE_SCRIPTS[0].text);
   const [selectedVoice, setSelectedVoice] = useState<VoiceProfile>(CURATED_VOICES[0]);
   const [languageFilter, setLanguageFilter] = useState<string>('all');
@@ -49,16 +52,17 @@ export const TtsStudio: React.FC<TtsStudioProps> = ({ onSaveToLibrary }) => {
 
   // Available languages from curated voices
   const availableLanguages = [
-    { code: 'all', label: 'All Languages' },
-    { code: 'en-US', label: 'English (US)' },
-    { code: 'en-GB', label: 'English (UK)' },
-    { code: 'en-AU', label: 'English (AU)' },
-    { code: 'en-IN', label: 'English (IN)' },
-    { code: 'es-ES', label: 'Spanish' },
-    { code: 'fr-FR', label: 'French' },
-    { code: 'de-DE', label: 'German' },
-    { code: 'ja-JP', label: 'Japanese' },
-    { code: 'it-IT', label: 'Italian' },
+    { code: 'all', label: 'All Languages / គ្រប់ភាសា' },
+    { code: 'km-KH', label: '🇰🇭 Khmer (ភាសាខ្មែរ)' },
+    { code: 'en-US', label: '🇺🇸 English (US)' },
+    { code: 'en-GB', label: '🇬🇧 English (UK)' },
+    { code: 'en-AU', label: '🇦🇺 English (AU)' },
+    { code: 'en-IN', label: '🇮🇳 English (IN)' },
+    { code: 'es-ES', label: '🇪🇸 Spanish' },
+    { code: 'fr-FR', label: '🇫🇷 French' },
+    { code: 'de-DE', label: '🇩🇪 German' },
+    { code: 'ja-JP', label: '🇯🇵 Japanese' },
+    { code: 'it-IT', label: '🇮🇹 Italian' },
   ];
 
   const filteredVoices = CURATED_VOICES.filter((voice) => {
@@ -213,20 +217,28 @@ export const TtsStudio: React.FC<TtsStudioProps> = ({ onSaveToLibrary }) => {
         <div>
           <h2 className="text-lg font-bold text-white flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-indigo-400" />
-            AI Text to Speech Studio
+            {isKhmer ? 'ស្ទូឌីយោបម្លែងអត្ថបទជាសំឡេង (AI Text to Speech)' : 'AI Text to Speech Studio'}
           </h2>
           <p className="text-xs text-slate-400 mt-0.5">
-            Convert scripts into natural speech with 300+ AI voice styles, custom pauses, and instant export.
+            {isKhmer
+              ? 'បម្លែងអត្ថបទជាសំឡេងនិយាយបែបធម្មជាតិ ជាមួយសំឡេងខ្មែរពិរោះៗ ការផ្អាកដកដង្ហើម និងការទាញយកកម្រិតខ្ពស់'
+              : 'Convert scripts into natural speech with 300+ AI voice styles, custom pauses, and instant export.'}
           </p>
         </div>
 
         {/* Preset Picker */}
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs text-slate-400 font-medium">Quick Presets:</span>
+          <span className="text-xs text-slate-400 font-medium">{isKhmer ? 'គំរូអត្ថបទ:' : 'Quick Presets:'}</span>
           {SAMPLE_SCRIPTS.slice(0, 4).map((preset, idx) => (
             <button
               key={idx}
-              onClick={() => setScriptText(preset.text)}
+              onClick={() => {
+                setScriptText(preset.text);
+                if (preset.title.includes('Khmer') || preset.title.includes('ខ្មែរ')) {
+                  const khmerVoice = CURATED_VOICES.find((v) => v.lang === 'km-KH');
+                  if (khmerVoice) setSelectedVoice(khmerVoice);
+                }
+              }}
               className="px-2.5 py-1 text-xs rounded-md bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700/60 transition-colors"
             >
               {preset.title}
@@ -242,12 +254,14 @@ export const TtsStudio: React.FC<TtsStudioProps> = ({ onSaveToLibrary }) => {
           <div className="rounded-xl bg-slate-900/90 border border-slate-800 p-4 space-y-3">
             <div className="flex items-center justify-between">
               <label htmlFor="script-textarea" className="text-xs font-semibold text-slate-300 uppercase tracking-wider">
-                Script / Narration Text
+                {isKhmer ? 'អត្ថបទស្គ្រីបសម្រាប់អាន' : 'Script / Narration Text'}
               </label>
 
               {/* Pause Insertion Tags */}
               <div className="flex items-center gap-1.5">
-                <span className="text-[11px] text-slate-400 hidden sm:inline">Add Pauses:</span>
+                <span className="text-[11px] text-slate-400 hidden sm:inline">
+                  {isKhmer ? 'បន្ថែមការផ្អាក:' : 'Add Pauses:'}
+                </span>
                 <button
                   onClick={() => handleInsertPause(0.5)}
                   className="px-2 py-0.5 text-[11px] rounded bg-indigo-950/60 text-indigo-300 border border-indigo-800/60 hover:bg-indigo-900 transition-colors"
@@ -266,7 +280,7 @@ export const TtsStudio: React.FC<TtsStudioProps> = ({ onSaveToLibrary }) => {
                   onClick={() => setScriptText('')}
                   className="px-2 py-0.5 text-[11px] rounded bg-slate-800 text-slate-400 hover:text-slate-200 transition-colors ml-2"
                 >
-                  Clear
+                  {isKhmer ? 'សម្អាត' : 'Clear'}
                 </button>
               </div>
             </div>
@@ -276,7 +290,7 @@ export const TtsStudio: React.FC<TtsStudioProps> = ({ onSaveToLibrary }) => {
               value={scriptText}
               onChange={(e) => setScriptText(e.target.value)}
               rows={7}
-              placeholder="Type or paste your text here to synthesize voice..."
+              placeholder={isKhmer ? 'សរសេរ ឬបិទភ្ជាប់អត្ថបទរបស់អ្នកនៅទីនេះដើម្បីបម្លែងជាសំឡេង...' : 'Type or paste your text here to synthesize voice...'}
               className="w-full rounded-lg bg-slate-950 border border-slate-800 px-3.5 py-3 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 resize-y font-sans leading-relaxed"
             />
 
@@ -284,18 +298,18 @@ export const TtsStudio: React.FC<TtsStudioProps> = ({ onSaveToLibrary }) => {
             <div className="flex flex-wrap items-center justify-between text-xs text-slate-400 pt-1 border-t border-slate-800/60 gap-2">
               <div className="flex items-center gap-4">
                 <span>
-                  <strong className="text-slate-200">{stats.characterCount}</strong> chars
+                  <strong className="text-slate-200">{stats.characterCount}</strong> {isKhmer ? 'តួអក្សរ' : 'chars'}
                 </span>
                 <span>
-                  <strong className="text-slate-200">{stats.wordCount}</strong> words
+                  <strong className="text-slate-200">{stats.wordCount}</strong> {isKhmer ? 'ពាក្យ' : 'words'}
                 </span>
                 <span>
-                  <strong className="text-slate-200">{stats.sentenceCount}</strong> sentences
+                  <strong className="text-slate-200">{stats.sentenceCount}</strong> {isKhmer ? 'ប្រយោគ' : 'sentences'}
                 </span>
               </div>
               <div className="flex items-center gap-1.5 text-indigo-300">
                 <Clock className="w-3.5 h-3.5" />
-                <span>Est. Duration: <strong>{stats.estimatedSeconds}s</strong></span>
+                <span>{isKhmer ? 'រយៈពេលប៉ាន់ស្មាន:' : 'Est. Duration:'} <strong>{stats.estimatedSeconds}s</strong></span>
               </div>
             </div>
           </div>

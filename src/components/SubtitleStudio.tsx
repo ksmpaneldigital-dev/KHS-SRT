@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
-import { SubtitleCue, SavedAudioItem } from '../types';
-import { SAMPLE_SRT, CURATED_VOICES } from '../data/presets';
+import { SubtitleCue, SavedAudioItem, AppLanguage } from '../types';
+import { SAMPLE_SRT, SAMPLE_SRT_KHMER, CURATED_VOICES } from '../data/presets';
 import { parseSRT, formatSRT, secondsToSrtTime, SubtitleCue as CueType } from '../utils/audioMath';
 import { voiceEngine } from '../services/voiceEngine';
 import { ExportSettingsModal } from './ExportSettingsModal';
@@ -23,10 +23,12 @@ import {
 
 interface SubtitleStudioProps {
   onSaveToLibrary: (item: SavedAudioItem) => void;
+  uiLang?: AppLanguage;
 }
 
-export const SubtitleStudio: React.FC<SubtitleStudioProps> = ({ onSaveToLibrary }) => {
-  const [cues, setCues] = useState<CueType[]>(() => parseSRT(SAMPLE_SRT));
+export const SubtitleStudio: React.FC<SubtitleStudioProps> = ({ onSaveToLibrary, uiLang = 'en' }) => {
+  const isKhmer = uiLang === 'km';
+  const [cues, setCues] = useState<CueType[]>(() => parseSRT(isKhmer ? SAMPLE_SRT_KHMER : SAMPLE_SRT));
   const [isPlayingAll, setIsPlayingAll] = useState<boolean>(false);
   const [activeCueId, setActiveCueId] = useState<number | null>(null);
   const [selectedVoiceId, setSelectedVoiceId] = useState<string>(CURATED_VOICES[0].id);
@@ -213,10 +215,12 @@ export const SubtitleStudio: React.FC<SubtitleStudioProps> = ({ onSaveToLibrary 
         <div>
           <h2 className="text-lg font-bold text-white flex items-center gap-2">
             <Subtitles className="w-5 h-5 text-emerald-400" />
-            Subtitle to Speech Studio (SRT to Audio)
+            {isKhmer ? 'ស្ទូឌីយោបម្លែងចំណងជើងរងជាសំឡេង (SRT Dubbing)' : 'Subtitle to Speech Studio (SRT to Audio)'}
           </h2>
           <p className="text-xs text-slate-400 mt-0.5">
-            Turn subtitle files (.srt, .vtt) into fully dubbed voiceover audio tracks with timecode synchronization.
+            {isKhmer
+              ? 'បម្លែងឯកសារចំណងជើងរង (.srt, .vtt) ទៅជាសំឡេងនិយាយស្របតាមពេលវេលាក្នុងវីដេអូ'
+              : 'Turn subtitle files (.srt, .vtt) into fully dubbed voiceover audio tracks with timecode synchronization.'}
           </p>
         </div>
 
@@ -234,7 +238,21 @@ export const SubtitleStudio: React.FC<SubtitleStudioProps> = ({ onSaveToLibrary 
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-200 border border-slate-700 transition-colors"
           >
             <Upload className="w-3.5 h-3.5 text-emerald-400" />
-            <span>Upload .SRT File</span>
+            <span>{isKhmer ? 'បញ្ចូលឯកសារ .SRT' : 'Upload .SRT File'}</span>
+          </button>
+
+          <button
+            onClick={() => {
+              setCues(parseSRT(SAMPLE_SRT_KHMER));
+              setRawText(SAMPLE_SRT_KHMER);
+              const khmerVoice = CURATED_VOICES.find((v) => v.lang === 'km-KH');
+              if (khmerVoice) setSelectedVoiceId(khmerVoice.id);
+            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-950/80 hover:bg-indigo-900/80 text-xs font-medium text-indigo-300 border border-indigo-700/60 transition-colors"
+            title="Load Khmer Subtitles"
+          >
+            <span>🇰🇭</span>
+            <span>{isKhmer ? 'គំរូអក្សរខ្មែរ (SRT)' : 'Khmer Sample'}</span>
           </button>
 
           <button
@@ -244,7 +262,7 @@ export const SubtitleStudio: React.FC<SubtitleStudioProps> = ({ onSaveToLibrary 
             }}
             className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-300 border border-slate-700 transition-colors"
           >
-            Load Sample
+            {isKhmer ? 'គំរូអង់គ្លេស' : 'EN Sample'}
           </button>
 
           <button
@@ -259,7 +277,7 @@ export const SubtitleStudio: React.FC<SubtitleStudioProps> = ({ onSaveToLibrary 
             className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-300 border border-slate-700 transition-colors"
           >
             <FileText className="w-3.5 h-3.5 text-indigo-400" />
-            <span>{rawView ? 'Visual Cues View' : 'Raw Text View'}</span>
+            <span>{rawView ? (isKhmer ? 'ទម្រង់កាត' : 'Visual Cues View') : (isKhmer ? 'ទម្រង់អត្ថបទដើម' : 'Raw Text View')}</span>
           </button>
         </div>
       </div>

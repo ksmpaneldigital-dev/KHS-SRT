@@ -1,5 +1,12 @@
 import { VoiceProfile } from '../types';
-import { parseScriptSegments, encodeWAV } from '../utils/audioMath';
+import {
+  parseScriptSegments,
+  encodeWAV,
+  calculatePeakLevel,
+  calculateRMSLevel,
+  linearToDb,
+  applyVolumeNormalization,
+} from '../utils/audioMath';
 
 export interface SpeakOptions {
   voiceProfile: VoiceProfile;
@@ -152,8 +159,21 @@ class VoiceEngineService {
       bitrate?: number; // 128, 192, 320 kbps
       channels?: 'mono' | 'stereo';
       format?: 'wav' | 'mp3';
+      gainMultiplier?: number;
+      enableLimiter?: boolean;
     }
-  ): { blob: Blob; url: string; duration: number; sampleRate: number; bitrate: number } {
+  ): {
+    blob: Blob;
+    url: string;
+    duration: number;
+    sampleRate: number;
+    bitrate: number;
+    peakDb: number;
+    rmsDb: number;
+    peakLinear: number;
+    rmsLinear: number;
+    channelData: Float32Array[];
+  } {
     const sampleRate = options.sampleRate || 44100;
     const bitrate = options.bitrate || 192;
     const isStereo = options.channels === 'stereo';
@@ -182,7 +202,6 @@ class VoiceEngineService {
 
     for (let i = 0; i < totalSamples; i++) {
       const t = i / sampleRate;
-      const wordIndex = Math.floor(i / samplesPerWord);
       const wordProgress = (i % samplesPerWord) / samplesPerWord;
 
       // Word syllable envelope
@@ -224,8 +243,21 @@ class VoiceEngineService {
       }
     }
 
-    const channelsData = channel2 ? [channel1, channel2] : [channel1];
-    const wavBytes = encodeWAV(channelsData, sampleRate);
+    let processedChannels: Float32Array[] = channel2 ? [channel1, channel2] : [channel1];
+
+    // Apply normalization gain & limiter if specified
+    const gainMul = options.gainMultiplier ?? 1.0;
+    const enableLimiter = options.enableLimiter ?? true;
+    if (gainMul !== 1.0 || enableLimiter) {
+      processedChannels = applyVolumeNormalization(processedChannels, gainMul, enableLimiter) as Float32Array[];
+    }
+
+    const peakLinear = calculatePeakLevel(processedChannels[0]);
+    const rmsLinear = calculateRMSLevel(processedChannels[0]);
+    const peakDb = linearToDb(peakLinear);
+    const rmsDb = linearToDb(rmsLinear);
+
+    const wavBytes = encodeWAV(processedChannels, sampleRate);
     const mimeType = options.format === 'mp3' ? 'audio/mp3' : 'audio/wav';
     const blob = new Blob([wavBytes as unknown as BlobPart], { type: mimeType });
     const url = URL.createObjectURL(blob);
@@ -236,6 +268,11 @@ class VoiceEngineService {
       duration: Math.round(duration * 10) / 10,
       sampleRate,
       bitrate,
+      peakDb,
+      rmsDb,
+      peakLinear,
+      rmsLinear,
+      channelData: processedChannels,
     };
   }
 

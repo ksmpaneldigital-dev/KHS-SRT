@@ -350,10 +350,19 @@ export function calculateTextStats(text: string, wpm: number = 145): TextStats {
 
   const clean = text.trim();
   const characterCount = clean.length;
-  const words = clean.split(/\s+/).filter(Boolean);
-  const wordCount = words.length;
+  const rawWords = clean.split(/\s+/).filter(Boolean);
+  let wordCount = rawWords.length;
 
-  const sentences = clean.split(/[.!?]+/).filter((s) => s.trim().length > 0);
+  // Check for Khmer script (\u1780-\u17FF) which frequently writes continuous text without spaces
+  const isKhmer = /[\u1780-\u17FF]/.test(clean);
+  if (isKhmer && (rawWords.length <= 1 || clean.replace(/\s+/g, '').length / Math.max(1, rawWords.length) > 7)) {
+    // Khmer words average ~3.8 characters per word
+    const nonSpaceChars = clean.replace(/\s+/g, '').length;
+    wordCount = Math.max(1, Math.round(nonSpaceChars / 3.8));
+  }
+
+  // Support Khmer punctuation '។' (khan) and '៕' (bariyoosan) alongside [.!?]
+  const sentences = clean.split(/[.!?\u17D4\u17D5]+/).filter((s) => s.trim().length > 0);
   const sentenceCount = sentences.length;
 
   // Duration in seconds
@@ -484,6 +493,177 @@ export interface AudioExportConfig {
   bitrate: number; // e.g. 128, 192, 320 (kbps)
   channels: 'mono' | 'stereo';
   normalizeGain?: boolean;
+  targetPeakDb?: number;
+  enableLimiter?: boolean;
+}
+
+export interface NormalizationPreset {
+  id: string;
+  name: string;
+  nameKm: string;
+  targetDb: number;
+  mode: 'peak' | 'rms';
+  description: string;
+  descriptionKm: string;
+}
+
+export const NORMALIZATION_PRESETS: NormalizationPreset[] = [
+  {
+    id: 'ebu_true_peak',
+    name: 'Broadcast True Peak (-1.0 dBFS)',
+    nameKm: 'ស្តង់ដារផ្សាយ True Peak (-1.0 dBFS)',
+    targetDb: -1.0,
+    mode: 'peak',
+    description: 'EBU R128 / ITU standard to prevent inter-sample clipping.',
+    descriptionKm: 'ស្តង់ដារ EBU R128 ការពារកុំឱ្យសំឡេងបែក ឬរហែក។',
+  },
+  {
+    id: 'voice_dialogue',
+    name: 'Voiceover Dialogue (-3.0 dBFS)',
+    nameKm: 'កម្រិតសំឡេងនិយាយ Voiceover (-3.0 dBFS)',
+    targetDb: -3.0,
+    mode: 'peak',
+    description: 'Clean balanced vocal level recommended for podcasts & narration.',
+    descriptionKm: 'កម្រិតល្អឥតខ្ចោះសម្រាប់ផតខាស់ និងការបញ្ចូលសំឡេង។',
+  },
+  {
+    id: 'streaming_rms',
+    name: 'Streaming Loudness (-14 dB RMS)',
+    nameKm: 'កម្រិតចាក់ផ្សាយ Streaming (-14 dB RMS)',
+    targetDb: -14.0,
+    mode: 'rms',
+    description: 'Target for Spotify, YouTube, and Apple Podcasts consistency.',
+    descriptionKm: 'គោលដៅសម្រាប់ Spotify, YouTube និង Apple Podcasts។',
+  },
+  {
+    id: 'max_headroom',
+    name: 'Max Headroom Peak (-0.1 dBFS)',
+    nameKm: 'កម្រិតខ្ពស់បំផុត (-0.1 dBFS)',
+    targetDb: -0.1,
+    mode: 'peak',
+    description: 'Maximum volume normalization without clipping 0 dB digital ceiling.',
+    descriptionKm: 'បង្កើនកម្រិតសំឡេងដល់អតិបរមាដោយមិនបែកសំឡេង។',
+  },
+];
+
+/**
+ * Converts linear amplitude (0.0 to 1.0+) to decibels Full Scale (dBFS).
+ */
+export function linearToDb(linear: number): number {
+  if (linear <= 0.00001) return -100;
+  return Math.round(20 * Math.log10(linear) * 10) / 10;
+}
+
+/**
+ * Converts decibels Full Scale (dBFS) to linear amplitude multiplier.
+ */
+export function dbToLinear(db: number): number {
+  if (db <= -100) return 0;
+  return Math.pow(10, db / 20);
+}
+
+/**
+ * Measures the maximum absolute peak level in an audio buffer.
+ */
+export function calculatePeakLevel(samples: Float32Array): number {
+  let peak = 0;
+  for (let i = 0; i < samples.length; i++) {
+    const abs = Math.abs(samples[i]);
+    if (abs > peak) {
+      peak = abs;
+    }
+  }
+  return Math.round(peak * 10000) / 10000;
+}
+
+/**
+ * Measures the Root Mean Square (RMS) energy level of an audio buffer.
+ */
+export function calculateRMSLevel(samples: Float32Array): number {
+  if (samples.length === 0) return 0;
+  let sum = 0;
+  for (let i = 0; i < samples.length; i++) {
+    sum += samples[i] * samples[i];
+  }
+  return Math.round(Math.sqrt(sum / samples.length) * 10000) / 10000;
+}
+
+export interface NormalizationResult {
+  gainMultiplier: number;
+  gainPercentage: number;
+  deltaDb: number;
+  currentPeakDb: number;
+  currentRmsDb: number;
+  projectedPeakDb: number;
+  willClipWithoutLimiter: boolean;
+}
+
+/**
+ * Calculates the exact normalization gain multiplier required to hit a target dB level.
+ */
+export function calculateNormalizationGain(
+  peakLinear: number,
+  rmsLinear: number,
+  mode: 'peak' | 'rms',
+  targetDb: number
+): NormalizationResult {
+  const currentPeak = Math.max(0.0001, peakLinear);
+  const currentRms = Math.max(0.0001, rmsLinear);
+  const targetLinear = dbToLinear(targetDb);
+
+  const referenceLinear = mode === 'rms' ? currentRms : currentPeak;
+  const gainMultiplier = targetLinear / referenceLinear;
+  const gainPercentage = Math.round(gainMultiplier * 100);
+
+  const currentPeakDb = linearToDb(currentPeak);
+  const currentRmsDb = linearToDb(currentRms);
+  const projectedPeakLinear = currentPeak * gainMultiplier;
+  const projectedPeakDb = linearToDb(projectedPeakLinear);
+  const deltaDb = Math.round((linearToDb(targetLinear) - linearToDb(referenceLinear)) * 10) / 10;
+
+  return {
+    gainMultiplier,
+    gainPercentage,
+    deltaDb,
+    currentPeakDb,
+    currentRmsDb,
+    projectedPeakDb,
+    willClipWithoutLimiter: projectedPeakLinear > 0.999,
+  };
+}
+
+/**
+ * High-fidelity soft-knee limiter / saturation function that prevents digital clipping
+ * while preserving audio warmth without harsh square-wave truncation.
+ */
+export function applySoftLimiter(sample: number, threshold: number = 0.92): number {
+  const abs = Math.abs(sample);
+  if (abs <= threshold) {
+    return sample;
+  }
+  // Soft compression above threshold: threshold + (1 - threshold) * tanh((abs - threshold) / (1 - threshold))
+  const excess = (abs - threshold) / (1 - threshold);
+  const compressed = threshold + (1 - threshold) * Math.tanh(excess);
+  const clamped = Math.min(0.999, compressed);
+  return sample < 0 ? -clamped : clamped;
+}
+
+/**
+ * Applies normalization gain and optional soft-knee limiting to audio channel buffers.
+ */
+export function applyVolumeNormalization(
+  channelData: Float32Array[],
+  gainMultiplier: number,
+  enableLimiter: boolean = true
+): Float32Array[] {
+  return channelData.map((channel) => {
+    const output = new Float32Array(channel.length);
+    for (let i = 0; i < channel.length; i++) {
+      const scaled = channel[i] * gainMultiplier;
+      output[i] = enableLimiter ? applySoftLimiter(scaled) : Math.max(-1.0, Math.min(1.0, scaled));
+    }
+    return output;
+  });
 }
 
 export const DEFAULT_EXPORT_CONFIG: AudioExportConfig = {
@@ -492,6 +672,8 @@ export const DEFAULT_EXPORT_CONFIG: AudioExportConfig = {
   bitrate: 192,
   channels: 'mono',
   normalizeGain: true,
+  targetPeakDb: -1.0,
+  enableLimiter: true,
 };
 
 /**
@@ -588,4 +770,142 @@ export function generateReferenceToneBuffer(
   }
 
   return buffer;
+}
+
+/**
+ * Result of audio buffer slicing / trimming operation.
+ */
+export interface AudioSliceResult {
+  channels: Float32Array[];
+  sampleRate: number;
+  duration: number;
+  sampleCount: number;
+  startSample: number;
+  endSample: number;
+  startTime: number;
+  endTime: number;
+}
+
+/**
+ * Accurately slices multi-channel Float32Array audio buffers between startTime and endTime in seconds.
+ * Clamps within valid bounds and ensures a minimum duration (e.g. 0.05s).
+ */
+export function sliceAudioBufferData(
+  channels: Float32Array[],
+  sampleRate: number,
+  startTime: number,
+  endTime: number
+): AudioSliceResult {
+  if (!channels || channels.length === 0 || !channels[0] || channels[0].length === 0) {
+    return {
+      channels: [],
+      sampleRate,
+      duration: 0,
+      sampleCount: 0,
+      startSample: 0,
+      endSample: 0,
+      startTime: 0,
+      endTime: 0,
+    };
+  }
+
+  const totalSamples = channels[0].length;
+  const totalDuration = totalSamples / sampleRate;
+
+  // Clamp startTime to [0, totalDuration - 0.05]
+  const clampedStart = Math.max(0, Math.min(startTime, Math.max(0, totalDuration - 0.05)));
+  // Clamp endTime to [clampedStart + 0.05, totalDuration]
+  const clampedEnd = Math.max(clampedStart + 0.05, Math.min(endTime, totalDuration));
+
+  const startSample = Math.max(0, Math.floor(clampedStart * sampleRate));
+  const endSample = Math.min(totalSamples, Math.max(startSample + 1, Math.ceil(clampedEnd * sampleRate)));
+  const sampleCount = endSample - startSample;
+  const slicedDuration = sampleCount / sampleRate;
+
+  const slicedChannels = channels.map((channel) => {
+    return channel.slice(startSample, endSample);
+  });
+
+  return {
+    channels: slicedChannels,
+    sampleRate,
+    duration: Math.round(slicedDuration * 1000) / 1000,
+    sampleCount,
+    startSample,
+    endSample,
+    startTime: Math.round((startSample / sampleRate) * 1000) / 1000,
+    endTime: Math.round((endSample / sampleRate) * 1000) / 1000,
+  };
+}
+
+/**
+ * Scans an audio channel to find the first and last non-silent audio frames.
+ * Returns suggested start and end crop points with an optional safety padding.
+ */
+export function detectSilenceBoundaries(
+  channel: Float32Array,
+  sampleRate: number,
+  thresholdDb: number = -38,
+  paddingSeconds: number = 0.05
+): { start: number; end: number; detectedSilence: boolean } {
+  if (!channel || channel.length === 0) {
+    return { start: 0, end: 0, detectedSilence: false };
+  }
+
+  const totalDuration = channel.length / sampleRate;
+  const thresholdLinear = Math.pow(10, thresholdDb / 20);
+
+  let firstIndex = -1;
+  let lastIndex = -1;
+
+  // Windowed scan with peak to prevent single-sample noise triggers
+  const windowSize = Math.max(1, Math.floor(sampleRate * 0.01)); // 10ms window
+
+  for (let i = 0; i < channel.length; i += windowSize) {
+    let windowPeak = 0;
+    const limit = Math.min(channel.length, i + windowSize);
+    for (let j = i; j < limit; j++) {
+      const absVal = Math.abs(channel[j]);
+      if (absVal > windowPeak) windowPeak = absVal;
+    }
+
+    if (windowPeak >= thresholdLinear) {
+      if (firstIndex === -1) {
+        firstIndex = i;
+      }
+      lastIndex = limit;
+    }
+  }
+
+  if (firstIndex === -1 || lastIndex === -1 || firstIndex >= lastIndex) {
+    // Entirely silent or quiet audio
+    return { start: 0, end: Math.round(totalDuration * 100) / 100, detectedSilence: false };
+  }
+
+  const paddingSamples = Math.floor(paddingSeconds * sampleRate);
+  const paddedStartIndex = Math.max(0, firstIndex - paddingSamples);
+  const paddedEndIndex = Math.min(channel.length, lastIndex + paddingSamples);
+
+  const startSec = Math.round((paddedStartIndex / sampleRate) * 100) / 100;
+  const endSec = Math.round((paddedEndIndex / sampleRate) * 100) / 100;
+
+  return {
+    start: startSec,
+    end: endSec,
+    detectedSilence: startSec > 0.05 || endSec < totalDuration - 0.05,
+  };
+}
+
+/**
+ * Formats time in seconds to mm:ss.ms or s.ms string
+ */
+export function formatAudioSeconds(seconds: number, includeMs: boolean = true): string {
+  if (isNaN(seconds) || seconds < 0) return '0.00s';
+  if (seconds < 60) {
+    return includeMs ? `${seconds.toFixed(2)}s` : `${Math.floor(seconds)}s`;
+  }
+  const mins = Math.floor(seconds / 60);
+  const remSecs = seconds % 60;
+  const remStr = includeMs ? remSecs.toFixed(2).padStart(5, '0') : Math.floor(remSecs).toString().padStart(2, '0');
+  return `${mins}:${remStr}`;
 }

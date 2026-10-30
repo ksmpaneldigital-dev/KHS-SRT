@@ -1,4 +1,5 @@
 export type ActiveTab = 'tts' | 'subtitles' | 'pitch' | 'recorder' | 'tools' | 'library';
+export type AppLanguage = 'en' | 'km';
 
 export interface VoiceProfile {
   id: string;
