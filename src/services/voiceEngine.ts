@@ -7,6 +7,7 @@ import {
   linearToDb,
   applyVolumeNormalization,
 } from '../utils/audioMath';
+import { encodeMP3 } from '../utils/mp3Encoder';
 
 export interface SpeakOptions {
   voiceProfile: VoiceProfile;
@@ -257,9 +258,14 @@ class VoiceEngineService {
     const peakDb = linearToDb(peakLinear);
     const rmsDb = linearToDb(rmsLinear);
 
-    const wavBytes = encodeWAV(processedChannels, sampleRate);
-    const mimeType = options.format === 'mp3' ? 'audio/mp3' : 'audio/wav';
-    const blob = new Blob([wavBytes as unknown as BlobPart], { type: mimeType });
+    let blob: Blob;
+    if (options.format === 'mp3') {
+      const mp3Bytes = encodeMP3(processedChannels, sampleRate, bitrate);
+      blob = new Blob([mp3Bytes as unknown as BlobPart], { type: 'audio/mp3' });
+    } else {
+      const wavBytes = encodeWAV(processedChannels, sampleRate);
+      blob = new Blob([wavBytes as unknown as BlobPart], { type: 'audio/wav' });
+    }
     const url = URL.createObjectURL(blob);
 
     return {

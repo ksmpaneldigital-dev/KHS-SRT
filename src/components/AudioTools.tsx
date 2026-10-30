@@ -16,6 +16,7 @@ import {
   sliceAudioBufferData,
   encodeWAV,
 } from '../utils/audioMath';
+import { encodeMP3 } from '../utils/mp3Encoder';
 import { VOICETOOL_ACTION_EVENT } from '../utils/keyboardShortcuts';
 import {
   Sliders,
@@ -375,9 +376,14 @@ export const AudioTools: React.FC<AudioToolsProps> = ({
       );
 
       if (sliceResult.channels.length > 0 && sliceResult.sampleCount > 0) {
-        const slicedWavBytes = encodeWAV(sliceResult.channels, cfg.sampleRate);
-        const mimeType = cfg.format === 'mp3' ? 'audio/mp3' : 'audio/wav';
-        const slicedBlob = new Blob([slicedWavBytes as unknown as BlobPart], { type: mimeType });
+        let slicedBlob: Blob;
+        if (cfg.format === 'mp3') {
+          const mp3Bytes = encodeMP3(sliceResult.channels, cfg.sampleRate, cfg.bitrate);
+          slicedBlob = new Blob([mp3Bytes as unknown as BlobPart], { type: 'audio/mp3' });
+        } else {
+          const slicedWavBytes = encodeWAV(sliceResult.channels, cfg.sampleRate);
+          slicedBlob = new Blob([slicedWavBytes as unknown as BlobPart], { type: 'audio/wav' });
+        }
         finalBlobUrl = URL.createObjectURL(slicedBlob);
         finalDuration = sliceResult.duration;
       }

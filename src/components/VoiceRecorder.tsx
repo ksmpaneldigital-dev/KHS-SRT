@@ -3,7 +3,8 @@ import { SavedAudioItem } from '../types';
 import { voiceEngine } from '../services/voiceEngine';
 import { AudioWaveVisualizer } from './AudioWaveVisualizer';
 import { ExportSettingsModal } from './ExportSettingsModal';
-import { AudioExportConfig, DEFAULT_EXPORT_CONFIG } from '../utils/audioMath';
+import { AudioExportConfig, DEFAULT_EXPORT_CONFIG, encodeWAV, sliceAudioBufferData } from '../utils/audioMath';
+import { encodeMP3, convertBlobFormat } from '../utils/mp3Encoder';
 import { VOICETOOL_ACTION_EVENT } from '../utils/keyboardShortcuts';
 import {
   Mic,
@@ -50,6 +51,8 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ onSaveToLibrary })
   const timerIntervalRef = useRef<any>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const recordedBlobRef = useRef<Blob | null>(null);
+  const rawChannelDataRef = useRef<Float32Array[] | null>(null);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -74,11 +77,23 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ onSaveToLibrary })
         }
       };
 
-      mediaRecorder.onstop = () => {
+      mediaRecorder.onstop = async () => {
         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/wav' });
+        recordedBlobRef.current = audioBlob;
         const url = URL.createObjectURL(audioBlob);
         setAudioUrl(url);
         setIsSaved(false);
+
+        try {
+          const arr = await audioBlob.arrayBuffer();
+          const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+          const ctx = new AudioContextClass();
+          const decoded = await ctx.decodeAudioData(arr);
+          rawChannelDataRef.current = [decoded.getChannelData(0)];
+          ctx.close().catch(() => {});
+        } catch (e) {
+          console.warn('Could not pre-decode recorded channels:', e);
+        }
       };
 
       mediaRecorder.start(100);
@@ -137,6 +152,8 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ onSaveToLibrary })
         basePitchHz: 180,
       }
     );
+    rawChannelDataRef.current = demo.channelData;
+    recordedBlobRef.current = demo.blob;
     setAudioUrl(demo.url);
     setRecordingSeconds(demo.duration);
     setIsRecording(false);
@@ -195,13 +212,57 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ onSaveToLibrary })
     setTimeout(() => setIsSaved(false), 2500);
   };
 
-  const handleExportWithConfig = (cfg: AudioExportConfig) => {
+  const handleExportWithConfig = async (cfg: AudioExportConfig) => {
     setExportConfig(cfg);
     if (!audioUrl) return;
 
+    let finalDownloadUrl = audioUrl;
+
+    if (rawChannelDataRef.current && rawChannelDataRef.current.length > 0) {
+      let channelsToExport = rawChannelDataRef.current;
+      const trimStartSec = (trimStart / 100) * (recordingSeconds || 1);
+      const trimEndSec = (trimEnd / 100) * (recordingSeconds || 1);
+      const isTrimmed = trimStart > 0 || trimEnd < 100;
+
+      if (isTrimmed && channelsToExport[0].length > 0) {
+        const sliced = sliceAudioBufferData(
+          channelsToExport,
+          cfg.sampleRate,
+          trimStartSec,
+          trimEndSec
+        );
+        if (sliced.channels.length > 0) {
+          channelsToExport = sliced.channels;
+        }
+      }
+
+      if (cfg.format === 'mp3') {
+        const mp3Bytes = encodeMP3(channelsToExport, cfg.sampleRate, cfg.bitrate);
+        const mp3Blob = new Blob([mp3Bytes as unknown as BlobPart], { type: 'audio/mp3' });
+        finalDownloadUrl = URL.createObjectURL(mp3Blob);
+      } else {
+        const wavBytes = encodeWAV(channelsToExport, cfg.sampleRate);
+        const wavBlob = new Blob([wavBytes as unknown as BlobPart], { type: 'audio/wav' });
+        finalDownloadUrl = URL.createObjectURL(wavBlob);
+      }
+    } else if (recordedBlobRef.current) {
+      try {
+        const converted = await convertBlobFormat(
+          recordedBlobRef.current,
+          cfg.format,
+          cfg.sampleRate,
+          cfg.bitrate,
+          cfg.channels
+        );
+        finalDownloadUrl = converted.url;
+      } catch (err) {
+        console.warn('Fallback to direct blob URL on conversion error:', err);
+      }
+    }
+
     const ext = cfg.format;
     const link = document.createElement('a');
-    link.href = audioUrl;
+    link.href = finalDownloadUrl;
     link.download = `VoiceTool_Recording_${(cfg.sampleRate / 1000).toFixed(1)}kHz_${cfg.bitrate}kbps_${Date.now()}.${ext}`;
     document.body.appendChild(link);
     link.click();
